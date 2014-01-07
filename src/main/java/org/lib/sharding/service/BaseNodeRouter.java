@@ -13,7 +13,7 @@ import static com.google.common.collect.ImmutableSet.copyOf;
 import static com.google.common.hash.Hashing.consistentHash;
 import static com.google.common.hash.Hashing.md5;
 
-public abstract class BaseNodeRouter<T> implements NodeRouter<T> {
+abstract class BaseNodeRouter<T> implements NodeRouter<T> {
 	private static final Logger log = LoggerFactory.getLogger(BaseNodeRouter.class);
 
 	abstract protected NodeRepository getNodeRepository();
