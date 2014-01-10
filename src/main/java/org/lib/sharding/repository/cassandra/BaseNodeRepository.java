@@ -64,7 +64,7 @@ public abstract class BaseNodeRepository implements NodeRepository {
 	}
 
 	@Override
-	public void heartbeat(final Node node) {
+	public synchronized void heartbeat(final Node node) {
 		Map<Integer, Node> copyOf = ImmutableMap.copyOf(currentNodes);
 
 		add(node);
@@ -82,7 +82,7 @@ public abstract class BaseNodeRepository implements NodeRepository {
 	}
 
 	@Override
-	public void add(@NotNull final Node node) {
+	public synchronized void add(@NotNull final Node node) {
 		NodeCluster actual = getNodeCluster();
 
 		long updated = LocalDateTime.now().toDate().getTime();
@@ -138,6 +138,7 @@ public abstract class BaseNodeRepository implements NodeRepository {
 				.from("heartbeats_client_nodes1")
 				.where(eq("id", suffix))
 		);
+		this.currentNodes = newHashMap();
 	}
 
 	private void update(Node node) {
@@ -241,7 +242,7 @@ public abstract class BaseNodeRepository implements NodeRepository {
 
 		if (nodeExpired) {
 			log.debug(
-				"Node({}) is expired: RequiredUpdateTime ({}) > lastUpdatedTime ([})",
+				"Node({}) is expired: RequiredUpdateTime ({}) > lastUpdatedTime ({})",
 				nodeInfo.getNode(),
 				new LocalDateTime(requiredUpdateTime),
 				new LocalDateTime(lastUpdateTime)

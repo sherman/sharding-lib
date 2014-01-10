@@ -1,5 +1,7 @@
 package org.lib.sharding.configuration;
 
+import org.lib.sharding.domain.Node;
+import org.lib.sharding.domain.ServerNode;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.PropertySource;
@@ -24,5 +26,12 @@ public class NodeRepositoryConfiguration {
 
 	public String getShardingKeyspace() {
 		return env.getProperty("sharding.cassandra.keyspace");
+	}
+
+	public Node getSelfNode() {
+		Node selfNode = new ServerNode();
+		selfNode.setId(env.getProperty("sharding.node.id", Long.class));
+		selfNode.setUrl(env.getProperty("sharding.node.url"));
+		return selfNode;
 	}
 }

@@ -20,18 +20,17 @@ abstract class BaseNodeRouter<T> implements NodeRouter<T> {
 
 	@Override
 	public Node getNodeByKey(@NotNull T elt) {
-		/*Set<Node> nodes = getNodeRepository().getNodes();
+		Map<Integer, Node> nodes = getNodeRepository().getNodes();
 		if (nodes.isEmpty()) {
 			throw new IllegalStateException("Nodes list is empty!");
 		}
 
-		Node node = nodes.get(consistentHash(md5().hashUnencodedChars(elt.toString()), nodes.size()));
+		Node node = nodes.get(consistentHash(md5().hashString(elt.toString()), nodes.size()));
 		if (null == node) {
 			throw new IllegalStateException("Can't find node for the given key:" + elt.toString());
 		}
 
-		return node;*/
-		return null;
+		return node;
 	}
 
 	@Override
@@ -46,6 +45,6 @@ abstract class BaseNodeRouter<T> implements NodeRouter<T> {
 
 	@Override
 	public Set<Node> getNodes() {
-		return null;//copyOf(getNodeRepository().getNodes().values());
+		return copyOf(getNodeRepository().getNodes().values());
 	}
 }

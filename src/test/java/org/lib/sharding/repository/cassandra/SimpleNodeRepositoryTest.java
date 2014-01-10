@@ -10,6 +10,7 @@ import org.lib.sharding.configuration.ShardingConfiguration;
 import org.lib.sharding.domain.Node;
 import org.lib.sharding.domain.ServerNode;
 import org.lib.sharding.repository.NodeRepository;
+import org.lib.sharding.service.ClientNodeRouter;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.support.AnnotationConfigContextLoader;
