@@ -20,7 +20,7 @@ abstract class BaseNodeRouter<T> implements NodeRouter<T> {
 
 	@Override
 	public Node getNodeByKey(@NotNull T elt) {
-		Map<Integer, Node> nodes = getNodeRepository().getNodes();
+		/*Set<Node> nodes = getNodeRepository().getNodes();
 		if (nodes.isEmpty()) {
 			throw new IllegalStateException("Nodes list is empty!");
 		}
@@ -30,7 +30,8 @@ abstract class BaseNodeRouter<T> implements NodeRouter<T> {
 			throw new IllegalStateException("Can't find node for the given key:" + elt.toString());
 		}
 
-		return node;
+		return node;*/
+		return null;
 	}
 
 	@Override
@@ -45,6 +46,6 @@ abstract class BaseNodeRouter<T> implements NodeRouter<T> {
 
 	@Override
 	public Set<Node> getNodes() {
-		return copyOf(getNodeRepository().getNodes().values());
+		return null;//copyOf(getNodeRepository().getNodes().values());
 	}
 }

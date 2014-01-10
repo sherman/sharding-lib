@@ -1,0 +1,346 @@
+package org.lib.sharding.repository.cassandra;
+
+
+import com.datastax.driver.core.*;
+import com.datastax.driver.core.querybuilder.QueryBuilder;
+import com.google.common.base.Function;
+import com.google.common.base.Objects;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Maps;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+import org.joda.time.LocalDateTime;
+import org.lib.sharding.configuration.NodeRepositoryConfiguration;
+import org.lib.sharding.domain.Listener;
+import org.lib.sharding.domain.Node;
+import org.lib.sharding.repository.NodeRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.util.SerializationUtils;
+
+import java.io.Serializable;
+import java.nio.ByteBuffer;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
+import static com.datastax.driver.core.querybuilder.QueryBuilder.eq;
+import static com.datastax.driver.core.querybuilder.QueryBuilder.set;
+import static com.google.common.base.Objects.equal;
+import static com.google.common.base.Objects.toStringHelper;
+import static com.google.common.collect.Maps.newHashMap;
+import static com.google.common.collect.Maps.transformValues;
+import static com.google.common.collect.Sets.newHashSet;
+import static java.lang.System.currentTimeMillis;
+
+public abstract class BaseNodeRepository implements NodeRepository {
+	private static final Logger log = LoggerFactory.getLogger(BaseNodeRepository.class);
+	private static final int MEMCACHED_DELAY_SECONDS = 2;
+
+	private Listener eventListener;
+
+	// local cached value used by Listener
+	private volatile Map<Integer, Node> currentNodes = newHashMap();
+
+	private final Cluster cassandraCluster;
+	private final NodeRepositoryConfiguration configuration;
+	private final String suffix;
+	private Session session;
+
+	@Override
+	public void setListener(@NotNull Listener eventListener) {
+		this.eventListener = eventListener;
+	}
+
+	public BaseNodeRepository(String suffix, Cluster cassandraCluster, NodeRepositoryConfiguration configuration) {
+		this.suffix = suffix;
+		this.cassandraCluster = cassandraCluster;
+		this.configuration = configuration;
+
+		this.session = cassandraCluster.connect(configuration.getShardingKeyspace());
+	}
+
+	@Override
+	public void heartbeat(final Node node) {
+		Map<Integer, Node> copyOf = ImmutableMap.copyOf(currentNodes);
+
+		add(node);
+
+		if (null != eventListener) {
+			eventListener.onChange(copyOf, currentNodes);
+		}
+	}
+
+	@Override
+	@NotNull
+	public Map<Integer, Node> getNodes() {
+		NodeCluster cluster = getNodeCluster();
+		return toNodeMap(cluster.getNodes());
+	}
+
+	@Override
+	public void add(@NotNull final Node node) {
+		NodeCluster actual = getNodeCluster();
+
+		long updated = LocalDateTime.now().toDate().getTime();
+
+		NodeInfo nodeInfo = new NodeInfo();
+		nodeInfo.setLastUpdateTime(updated);
+		nodeInfo.setNode(node);
+
+		if (null == actual) {
+			Map<Integer, NodeInfo> initial = Maps.newHashMap();
+			initial.put(0, nodeInfo);
+
+			NodeCluster initialCluster = new NodeCluster(initial, updated);
+			// try insert new
+			ResultSet set = session.execute(
+				QueryBuilder.insertInto("heartbeats_client_nodes1")
+					.value("id", "client_nodes")
+					.value("nodes", ByteBuffer.wrap(SerializationUtils.serialize(initialCluster.getNodes())))
+					.value("updated", initialCluster.getNodes())
+					.ifNotExists()
+			);
+
+			// XXX: actually was inserted!
+			if (set.getColumnDefinitions().size() == 0) {
+				this.currentNodes = toNodeMap(initialCluster.getNodes());
+			} else {
+				// someone has been more faster
+				update(node);
+			}
+		} else {
+			// nodes already presented
+			update(node);
+		}
+	}
+
+	@Override
+	public void remove(@NotNull final Node node) {
+		throw new UnsupportedOperationException("Not implemented!");
+	}
+
+	@Override
+	public int size() {
+		return getNodes().size();
+	}
+
+	@Override
+	public void removeAll() {
+		session.execute(
+			QueryBuilder.delete()
+				.from("heartbeats_client_nodes1")
+				.where(eq("id", suffix))
+		);
+	}
+
+	private void update(Node node) {
+		// FIXME: exit anyway after n-tries
+		while (true) {
+			NodeCluster cluster = getNodeCluster();
+			updateNode(node, cluster);
+
+			removeExpiredNodes(cluster);
+
+			ResultSet set = session.execute(
+				QueryBuilder.update("heartbeats_client_nodes1")
+					.with(set("nodes", ByteBuffer.wrap(SerializationUtils.serialize(cluster.getNodes()))))
+					.and(set("updated", cluster.getUpdated()))
+					.where(eq("id", suffix))
+
+			);
+
+			if (set.getColumnDefinitions().size() == 0) {
+				this.currentNodes = toNodeMap(cluster.getNodes());
+				return;
+			}
+		}
+	}
+
+	private void removeExpiredNodes(NodeCluster cluster) {
+		Set<Node> mustBeRemoved = newHashSet();
+
+		for (NodeInfo nodeInfo : cluster.getNodes().values()) {
+			if (isNodeExpired(nodeInfo)) {
+				mustBeRemoved.add(nodeInfo.getNode());
+			}
+		}
+
+		for (Node removableNode : mustBeRemoved) {
+			removeNode(cluster.getNodes(), removableNode);
+		}
+	}
+
+	private static void updateNode(Node node, NodeCluster cluster) {
+		for (NodeInfo actualNode : cluster.getNodes().values()) {
+			if (actualNode.getNode().equals(node)) {
+				actualNode.setLastUpdateTime(LocalDateTime.now().toDate().getTime());
+				return;
+			}
+		}
+
+		NodeInfo nodeInfo = new NodeInfo();
+		nodeInfo.setNode(node);
+		nodeInfo.setLastUpdateTime(LocalDateTime.now().toDate().getTime());
+		// add to the end of the node cluster
+		cluster.getNodes().put(cluster.getNodes().size(), nodeInfo);
+	}
+
+	private NodeCluster getNodeCluster() {
+		ResultSet result = session.execute(
+			QueryBuilder
+				.select()
+				.from("heartbeats_client_nodes1")
+				.where(eq("id", suffix))
+		);
+
+		Map<Integer, NodeInfo> nodes = newHashMap();
+		long updated = LocalDateTime.now().toDate().getTime();
+
+		Row row = result.one();
+		if (null != row) {
+			try {
+				ByteBuffer nodesBuffer = row.getBytes("nodes");
+				byte[] nodeBytes = new byte[nodesBuffer.remaining()];
+				nodesBuffer.get(nodeBytes);
+
+				nodes = (Map<Integer, NodeInfo>) SerializationUtils.deserialize(nodeBytes);
+				updated = row.getLong("updated");
+			} catch (Exception e) {
+				log.error("Can't get nodes", e);
+				nodes = newHashMap();
+				updated = LocalDateTime.now().toDate().getTime();
+			}
+		}
+
+		NodeCluster nodeCluster = new NodeCluster(nodes, updated);
+		return nodeCluster;
+	}
+
+	private boolean isNodeExpired(NodeInfo nodeInfo) {
+		Long lastUpdateTime = nodeInfo.getLastUpdateTime();
+		Long requiredUpdateTime =
+			currentTimeMillis()
+				- (configuration.getHeartbeatDelay() * 2) * 1000;
+		// heartbeat time is expired
+		boolean nodeExpired =
+			null == lastUpdateTime
+				|| requiredUpdateTime > lastUpdateTime;
+
+		if (nodeExpired) {
+			log.debug(
+				"Node({}) is expired: RequiredUpdateTime ({}) > lastUpdatedTime ([})",
+				nodeInfo.getNode(),
+				new LocalDateTime(requiredUpdateTime),
+				new LocalDateTime(lastUpdateTime)
+			);
+		}
+
+		return nodeExpired;
+	}
+
+	private static void removeNode(Map<Integer, NodeInfo> nodes, Node removableNode) {
+		for (Map.Entry<Integer, NodeInfo> node : nodes.entrySet()) {
+			if (removableNode.equals(node.getValue().getNode())) {
+				nodes.remove(node.getKey());
+
+				if (!node.getKey().equals(nodes.size())) {
+					log.debug("Delete node {}", removableNode);
+					int actualNodeSize = nodes.size();
+					nodes.put(node.getKey(), nodes.get(actualNodeSize));
+					nodes.remove(actualNodeSize);
+				}
+				return;
+			}
+		}
+	}
+
+	private static class NodeCluster {
+		private final Map<Integer, NodeInfo> nodes;
+		private long updated;
+
+		private NodeCluster(Map<Integer, NodeInfo> nodes, long updated) {
+			this.nodes = nodes;
+			this.updated = updated;
+		}
+
+		public Map<Integer, NodeInfo> getNodes() {
+			return nodes;
+		}
+
+		public long getUpdated() {
+			return updated;
+		}
+
+		public void setUpdated(long updated) {
+			this.updated = updated;
+		}
+	}
+
+	private static Map<Integer, Node> toNodeMap(Map<Integer, NodeInfo> nodeInfoMap) {
+		return transformValues(
+			nodeInfoMap,
+			new Function<NodeInfo, Node>() {
+				@Override
+				public Node apply(@Nullable NodeInfo nodeInfo) {
+					assert null != nodeInfo;
+					return nodeInfo.getNode();
+				}
+			}
+		);
+	}
+
+	public static class NodeInfo implements Serializable {
+		private static final long serialVersionUID = 3962506218211361551l;
+
+		private Node node;
+		private long lastUpdateTime;
+
+		public Node getNode() {
+			return node;
+		}
+
+		public void setNode(Node node) {
+			this.node = node;
+		}
+
+		public long getLastUpdateTime() {
+			return lastUpdateTime;
+		}
+
+		public void setLastUpdateTime(long lastUpdateTime) {
+			this.lastUpdateTime = lastUpdateTime;
+		}
+
+		@Override
+		public boolean equals(Object object) {
+			if (this == object) {
+				return true;
+			}
+			if (null == object) {
+				return false;
+			}
+
+			if (!(object instanceof NodeInfo)) {
+				return false;
+			}
+
+			NodeInfo o = (NodeInfo) object;
+
+			return equal(node, o.node);
+		}
+
+		@Override
+		public int hashCode() {
+			return Objects.hashCode(node);
+		}
+
+		@Override
+		public String toString() {
+			return toStringHelper(this)
+				.addValue(node)
+				.addValue(lastUpdateTime)
+				.toString();
+		}
+	}
+}
