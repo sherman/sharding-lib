@@ -5,6 +5,7 @@ import com.datastax.driver.core.*;
 import com.datastax.driver.core.querybuilder.QueryBuilder;
 import com.google.common.base.Function;
 import com.google.common.base.Objects;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import org.jetbrains.annotations.NotNull;
@@ -28,6 +29,7 @@ import static com.datastax.driver.core.querybuilder.QueryBuilder.eq;
 import static com.datastax.driver.core.querybuilder.QueryBuilder.set;
 import static com.google.common.base.Objects.equal;
 import static com.google.common.base.Objects.toStringHelper;
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.Maps.newHashMap;
 import static com.google.common.collect.Maps.transformValues;
 import static com.google.common.collect.Sets.newHashSet;
@@ -35,6 +37,8 @@ import static java.lang.System.currentTimeMillis;
 
 public abstract class BaseNodeRepository implements NodeRepository {
 	private static final Logger log = LoggerFactory.getLogger(BaseNodeRepository.class);
+
+	private static final int MAX_UPDATE_ATTEMPTS = 0x5;
 
 	private Listener eventListener;
 
@@ -87,22 +91,25 @@ public abstract class BaseNodeRepository implements NodeRepository {
 		nodeInfo.setLastUpdateTime(updated);
 		nodeInfo.setNode(node);
 
-		if (null == actual) {
+		if (actual.isEmpty()) {
 			Map<Integer, NodeInfo> initial = Maps.newHashMap();
 			initial.put(0, nodeInfo);
 
 			NodeCluster initialCluster = new NodeCluster(initial, updated);
-			// try insert new
-			ResultSet set = session.execute(
-				QueryBuilder.insertInto("heartbeats_client_nodes1")
-					.value("id", "client_nodes")
-					.value("nodes", ByteBuffer.wrap(SerializationUtils.serialize(initialCluster.getNodes())))
-					.value("updated", initialCluster.getNodes())
-					.ifNotExists()
-			);
 
-			// XXX: actually was inserted!
-			if (set.getColumnDefinitions().size() == 0) {
+			Statement insertStatement = QueryBuilder
+				.insertInto("heartbeats_client_nodes1")
+				.value("id", "client_nodes")
+				.value("nodes", ByteBuffer.wrap(SerializationUtils.serialize(initialCluster.getNodes())))
+				.value("updated", initialCluster.getUpdated())
+				.ifNotExists();
+
+			log.debug("Insert query is ({})", insertStatement);
+
+			// try insert new
+			ResultSet set = session.execute(insertStatement);
+
+			if (set.getAvailableWithoutFetching() > 0 && !set.one().getBool("[applied]")) {
 				this.currentNodes = toNodeMap(initialCluster.getNodes());
 			} else {
 				// someone has been more faster
@@ -134,26 +141,32 @@ public abstract class BaseNodeRepository implements NodeRepository {
 	}
 
 	private void update(Node node) {
-		// FIXME: exit anyway after n-tries
-		while (true) {
+		for (int i = 0; i < MAX_UPDATE_ATTEMPTS; i++) {
 			NodeCluster cluster = getNodeCluster();
 			updateNode(node, cluster);
 
 			removeExpiredNodes(cluster);
 
-			ResultSet set = session.execute(
-				QueryBuilder.update("heartbeats_client_nodes1")
-					.with(set("nodes", ByteBuffer.wrap(SerializationUtils.serialize(cluster.getNodes()))))
-					.and(set("updated", cluster.getUpdated()))
-					.where(eq("id", suffix))
+			long lastUpdated = LocalDateTime.now().toDate().getTime();
 
-			);
+			Statement updateStatement = QueryBuilder.update("heartbeats_client_nodes1")
+				.with(set("nodes", ByteBuffer.wrap(SerializationUtils.serialize(cluster.getNodes()))))
+				.and(set("updated", lastUpdated))
+				.where(eq("id", suffix))
+				.onlyIf(eq("updated", cluster.getUpdated()));
 
-			if (set.getColumnDefinitions().size() == 0) {
+			log.debug("Update query is ({})", updateStatement);
+
+			ResultSet set = session.execute(updateStatement);
+
+			if (set.getAvailableWithoutFetching() > 0 && set.one().getBool("[applied]")) {
+				cluster.setUpdated(lastUpdated);
 				this.currentNodes = toNodeMap(cluster.getNodes());
 				return;
 			}
 		}
+
+		checkArgument(false, "Can't update repository");
 	}
 
 	private void removeExpiredNodes(NodeCluster cluster) {
@@ -194,7 +207,7 @@ public abstract class BaseNodeRepository implements NodeRepository {
 		);
 
 		Map<Integer, NodeInfo> nodes = newHashMap();
-		long updated = LocalDateTime.now().toDate().getTime();
+		long updated = 0;
 
 		Row row = result.one();
 		if (null != row) {
@@ -208,7 +221,7 @@ public abstract class BaseNodeRepository implements NodeRepository {
 			} catch (Exception e) {
 				log.error("Can't get nodes", e);
 				nodes = newHashMap();
-				updated = LocalDateTime.now().toDate().getTime();
+				updated = 0;
 			}
 		}
 
@@ -273,6 +286,10 @@ public abstract class BaseNodeRepository implements NodeRepository {
 
 		public void setUpdated(long updated) {
 			this.updated = updated;
+		}
+
+		public boolean isEmpty() {
+			return nodes.isEmpty();
 		}
 	}
 
