@@ -35,7 +35,6 @@ import static java.lang.System.currentTimeMillis;
 
 public abstract class BaseNodeRepository implements NodeRepository {
 	private static final Logger log = LoggerFactory.getLogger(BaseNodeRepository.class);
-	private static final int MEMCACHED_DELAY_SECONDS = 2;
 
 	private Listener eventListener;
 
