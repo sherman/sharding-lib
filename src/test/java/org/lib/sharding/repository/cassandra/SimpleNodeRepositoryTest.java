@@ -80,7 +80,7 @@ public class SimpleNodeRepositoryTest extends AbstractTestNGSpringContextTests {
 		Map<Integer, BaseNodeRepository.NodeInfo> previousNodes = getNodesInfo();
 
 		repository.heartbeat(node1);
-		assertEquals(previousUpdated, getUpdated());
+		assertTrue(previousUpdated < getUpdated());
 
 		Map<Integer, BaseNodeRepository.NodeInfo> nodes = getNodesInfo();
 		assertTrue(previousNodes.get(0).getLastUpdateTime() < nodes.get(0).getLastUpdateTime());
@@ -97,6 +97,7 @@ public class SimpleNodeRepositoryTest extends AbstractTestNGSpringContextTests {
 		node2.setUrl("http://43");
 
 		repository.heartbeat(node1);
+		repository.heartbeat(node2);
 		assertEquals(repository.getNodes(), ImmutableMap.of(0, node1, 1, node2));
 
 		Thread.sleep(configuration.getHeartbeatDelay() * 2 * 1000 + 1);
@@ -116,6 +117,7 @@ public class SimpleNodeRepositoryTest extends AbstractTestNGSpringContextTests {
 		node2.setUrl("http://43");
 
 		repository.heartbeat(node1);
+		repository.heartbeat(node2);
 		assertEquals(repository.getNodes(), ImmutableMap.of(0, node1, 1, node2));
 
 		Thread.sleep(configuration.getHeartbeatDelay() * 2 * 1000 + 1);
