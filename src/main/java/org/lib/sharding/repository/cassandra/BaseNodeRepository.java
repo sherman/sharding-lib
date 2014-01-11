@@ -4,62 +4,41 @@ package org.lib.sharding.repository.cassandra;
 import com.datastax.driver.core.*;
 import com.datastax.driver.core.querybuilder.QueryBuilder;
 import com.google.common.base.Function;
-import com.google.common.base.Objects;
-import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.joda.time.LocalDateTime;
 import org.lib.sharding.configuration.NodeRepositoryConfiguration;
-import org.lib.sharding.domain.Listener;
 import org.lib.sharding.domain.Node;
 import org.lib.sharding.repository.NodeInfo;
-import org.lib.sharding.repository.NodeRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.util.SerializationUtils;
 
-import java.io.Serializable;
 import java.nio.ByteBuffer;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
 import static com.datastax.driver.core.querybuilder.QueryBuilder.eq;
 import static com.datastax.driver.core.querybuilder.QueryBuilder.set;
-import static com.google.common.base.Objects.equal;
-import static com.google.common.base.Objects.toStringHelper;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.Maps.newHashMap;
 import static com.google.common.collect.Maps.transformValues;
 import static com.google.common.collect.Sets.newHashSet;
 import static java.lang.System.currentTimeMillis;
 
-public abstract class BaseNodeRepository implements NodeRepository {
+public abstract class BaseNodeRepository extends org.lib.sharding.repository.BaseNodeRepository {
 	private static final Logger log = LoggerFactory.getLogger(BaseNodeRepository.class);
 
 	private static final int MAX_UPDATE_ATTEMPTS = 0x5;
 
-	private Listener eventListener;
-
-	// local cached value used by Listener
-	private volatile Map<Integer, Node> currentNodes = newHashMap();
-
 	private final Cluster cassandraCluster;
-	private final NodeRepositoryConfiguration configuration;
-	private final String suffix;
 	private Session session;
 
-	@Override
-	public void setListener(@NotNull Listener eventListener) {
-		this.eventListener = eventListener;
-	}
-
 	public BaseNodeRepository(String suffix, Cluster cassandraCluster, NodeRepositoryConfiguration configuration) {
-		this.suffix = suffix;
+		super(configuration, suffix);
 		this.cassandraCluster = cassandraCluster;
-		this.configuration = configuration;
 
 		this.session = cassandraCluster.connect(configuration.getShardingKeyspace());
 	}
@@ -125,11 +104,6 @@ public abstract class BaseNodeRepository implements NodeRepository {
 	@Override
 	public void remove(@NotNull final Node node) {
 		throw new UnsupportedOperationException("Not implemented!");
-	}
-
-	@Override
-	public int size() {
-		return getNodes().size();
 	}
 
 	@Override

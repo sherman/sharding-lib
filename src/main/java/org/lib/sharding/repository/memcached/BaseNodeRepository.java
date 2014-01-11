@@ -1,9 +1,7 @@
 package org.lib.sharding.repository.memcached;
 
 
-import com.datastax.driver.core.Cluster;
 import com.google.common.base.Function;
-import com.google.common.base.Objects;
 import com.google.common.base.Optional;
 import com.google.common.base.Predicate;
 import com.google.common.collect.Maps;
@@ -16,18 +14,13 @@ import org.lib.sharding.domain.Listener;
 import org.lib.sharding.domain.Node;
 import org.lib.sharding.memcached.MemcachedClient;
 import org.lib.sharding.repository.NodeInfo;
-import org.lib.sharding.repository.NodeRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.inject.Inject;
-import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 
-import static com.google.common.base.Objects.equal;
-import static com.google.common.base.Objects.toStringHelper;
 import static com.google.common.collect.FluentIterable.from;
 import static com.google.common.collect.ImmutableMap.copyOf;
 import static com.google.common.collect.Maps.newHashMap;
@@ -35,7 +28,7 @@ import static com.google.common.collect.Maps.transformValues;
 import static com.google.common.collect.Sets.newHashSet;
 import static java.lang.System.currentTimeMillis;
 
-public abstract class BaseNodeRepository implements NodeRepository {
+public abstract class BaseNodeRepository extends org.lib.sharding.repository.BaseNodeRepository {
 	private static final Logger log = LoggerFactory.getLogger(BaseNodeRepository.class);
 	private static final int MEMCACHED_DELAY_SECONDS = 2;
 
@@ -44,19 +37,11 @@ public abstract class BaseNodeRepository implements NodeRepository {
 	// local cached value used by Listener
 	private volatile Map<Integer, Node> currentNodes = newHashMap();
 
-	private final NodeRepositoryConfiguration configuration;
 	private final MemcachedClient memcached;
-	private final String suffix;
 
 	public BaseNodeRepository(String suffix, MemcachedClient memcached, NodeRepositoryConfiguration configuration) {
-		this.suffix = suffix;
+		super(configuration, suffix);
 		this.memcached = memcached;
-		this.configuration = configuration;
-	}
-
-	@Override
-	public void setListener(@NotNull Listener eventListener) {
-		this.eventListener = eventListener;
 	}
 
 	/**
@@ -163,11 +148,6 @@ public abstract class BaseNodeRepository implements NodeRepository {
 				}
 			}
 		);
-	}
-
-	@Override
-	public int size() {
-		return getNodeInfoCollection().size();
 	}
 
 	@Override
