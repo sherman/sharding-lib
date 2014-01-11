@@ -67,7 +67,7 @@ public class MemcachedClient {
 	}
 
 	@SuppressWarnings("unchecked")
-	public <T extends Serializable> T get(final String key) {
+	public <T> T get(final String key) {
 		T value = (T) client.get(key, new SerializingTranscoder());
 		log.debug("Get value({}) with key({})", value, key);
 		return value;

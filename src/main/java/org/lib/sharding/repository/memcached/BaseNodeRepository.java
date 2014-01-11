@@ -1,6 +1,7 @@
 package org.lib.sharding.repository.memcached;
 
 
+import com.datastax.driver.core.Cluster;
 import com.google.common.base.Function;
 import com.google.common.base.Objects;
 import com.google.common.base.Optional;
@@ -37,18 +38,20 @@ public abstract class BaseNodeRepository implements NodeRepository {
 	private static final Logger log = LoggerFactory.getLogger(BaseNodeRepository.class);
 	private static final int MEMCACHED_DELAY_SECONDS = 2;
 
-	@Inject
-	private MemcachedClient memcached;
-
-	@Inject
-	protected NodeRepositoryConfiguration configuration;
-
-	protected abstract String getNodeCollectionKey();
-
 	private Listener eventListener;
 
 	// local cached value used by Listener
 	private volatile Map<Integer, Node> currentNodes = newHashMap();
+
+	private final NodeRepositoryConfiguration configuration;
+	private final MemcachedClient memcached;
+	private final String suffix;
+
+	public BaseNodeRepository(String suffix, MemcachedClient memcached, NodeRepositoryConfiguration configuration) {
+		this.suffix = suffix;
+		this.memcached = memcached;
+		this.configuration = configuration;
+	}
 
 	@Override
 	public void setListener(@NotNull Listener eventListener) {
@@ -70,7 +73,7 @@ public abstract class BaseNodeRepository implements NodeRepository {
 		newNodes.value = copyOf(
 			toNodeMap(
 				memcached.cas(
-					getNodeCollectionKey(), THIRTY_DAYS, initial,
+					suffix, THIRTY_DAYS, initial,
 					new CASMutation<Map<Integer, NodeInfo>>() {
 						@Override
 						public Map<Integer, NodeInfo> getNewValue(Map<Integer, NodeInfo> current) {
@@ -133,7 +136,7 @@ public abstract class BaseNodeRepository implements NodeRepository {
 		addNode(initial, node);
 
 		memcached.cas(
-			getNodeCollectionKey(), THIRTY_DAYS, initial,
+			suffix, THIRTY_DAYS, initial,
 			new CASMutation<Map<Integer, NodeInfo>>() {
 				@Override
 				public Map<Integer, NodeInfo> getNewValue(Map<Integer, NodeInfo> current) {
@@ -150,7 +153,7 @@ public abstract class BaseNodeRepository implements NodeRepository {
 	@Override
 	public void remove(@NotNull final Node node) {
 		memcached.cas(
-			getNodeCollectionKey(), THIRTY_DAYS, Maps.<Integer, NodeInfo>newHashMap(),
+			suffix, THIRTY_DAYS, Maps.<Integer, NodeInfo>newHashMap(),
 			new CASMutation<Map<Integer, NodeInfo>>() {
 				@Override
 				public Map<Integer, NodeInfo> getNewValue(Map<Integer, NodeInfo> current) {
@@ -168,12 +171,12 @@ public abstract class BaseNodeRepository implements NodeRepository {
 
 	@Override
 	public void removeAll() {
-		memcached.delete(getNodeCollectionKey());
+		memcached.delete(suffix);
 		currentNodes = newHashMap();
 	}
 
 	private Map<Integer, NodeInfo> getNodeInfoCollection() {
-		Map<Integer, NodeInfo> nodes = memcached.<HashMap<Integer, NodeInfo>>get(getNodeCollectionKey());
+		Map<Integer, NodeInfo> nodes = memcached.<HashMap<Integer, NodeInfo>>get(suffix);
 		if (null == nodes) {
 			nodes = newHashMap();
 		}
@@ -220,7 +223,7 @@ public abstract class BaseNodeRepository implements NodeRepository {
 		}
 	}
 
-	private static class NodeInfo implements Serializable {
+	public static class NodeInfo implements Serializable {
 		private Node node;
 		private long lastUpdateTime;
 

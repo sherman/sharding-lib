@@ -2,14 +2,13 @@ package org.lib.sharding.service;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
+import org.lib.sharding.configuration.CassandraShardingConfiguration;
 import org.lib.sharding.configuration.ClusterConfiguration;
 import org.lib.sharding.configuration.NodeRepositoryConfiguration;
-import org.lib.sharding.configuration.ShardingConfiguration;
 import org.lib.sharding.domain.Listener;
 import org.lib.sharding.domain.Node;
 import org.lib.sharding.domain.ServerNode;
 import org.lib.sharding.repository.NodeRepository;
-import org.lib.sharding.repository.cassandra.BaseNodeRepository;
 import org.mockito.Matchers;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -39,7 +38,7 @@ import static org.testng.Assert.assertEquals;
 
 @ContextConfiguration(
 	loader = AnnotationConfigContextLoader.class,
-	classes = {ClusterConfiguration.class, ShardingConfiguration.class, ClientNodeRouter.class}
+	classes = {ClusterConfiguration.class, CassandraShardingConfiguration.class, ClientNodeRouter.class}
 )
 @ActiveProfiles("test")
 public class ClientNodeRouterTest extends AbstractTestNGSpringContextTests {

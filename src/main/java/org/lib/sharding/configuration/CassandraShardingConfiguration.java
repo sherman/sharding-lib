@@ -13,7 +13,7 @@ import javax.inject.Named;
 
 @Configuration
 @Import({ClusterConfiguration.class, NodeRepositoryConfiguration.class})
-public class ShardingConfiguration {
+public class CassandraShardingConfiguration {
 
 	@Inject
 	private Cluster cluster;

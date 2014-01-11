@@ -1,36 +1,32 @@
-package org.lib.sharding.repository.cassandra;
+package org.lib.sharding.repository.memcached;
 
-import com.datastax.driver.core.Cluster;
-import com.datastax.driver.core.Session;
 import com.datastax.driver.core.querybuilder.QueryBuilder;
 import com.google.common.collect.ImmutableMap;
-import org.lib.sharding.configuration.CassandraShardingConfiguration;
-import org.lib.sharding.configuration.ClusterConfiguration;
+import org.lib.sharding.configuration.MemcachedShardingConfiguration;
 import org.lib.sharding.configuration.NodeRepositoryConfiguration;
 import org.lib.sharding.domain.Node;
 import org.lib.sharding.domain.ServerNode;
+import org.lib.sharding.memcached.MemcachedClient;
 import org.lib.sharding.repository.NodeRepository;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.support.AnnotationConfigContextLoader;
 import org.springframework.test.context.testng.AbstractTestNGSpringContextTests;
 import org.springframework.util.SerializationUtils;
-import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import javax.inject.Inject;
 import javax.inject.Named;
 import java.nio.ByteBuffer;
-import java.util.*;
+import java.util.Map;
 
-import static com.datastax.driver.core.querybuilder.QueryBuilder.eq;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 
 @ContextConfiguration(
 	loader = AnnotationConfigContextLoader.class,
-	classes = {ClusterConfiguration.class, CassandraShardingConfiguration.class}
+	classes = {MemcachedShardingConfiguration.class}
 )
 @ActiveProfiles("test")
 public class SimpleNodeRepositoryTest extends AbstractTestNGSpringContextTests {
@@ -40,12 +36,10 @@ public class SimpleNodeRepositoryTest extends AbstractTestNGSpringContextTests {
 	private NodeRepository repository;
 
 	@Inject
-	private Cluster cluster;
-
-	@Inject
 	private NodeRepositoryConfiguration configuration;
 
-	private Session session;
+	@Inject
+	private MemcachedClient memcachedClient;
 
 	@Test
 	public void heartbeat() throws InterruptedException {
@@ -76,11 +70,9 @@ public class SimpleNodeRepositoryTest extends AbstractTestNGSpringContextTests {
 		repository.heartbeat(node1);
 		assertEquals(repository.getNodes(), ImmutableMap.of(0, node1));
 
-		long previousUpdated = getUpdated();
 		Map<Integer, BaseNodeRepository.NodeInfo> previousNodes = getNodesInfo();
 
 		repository.heartbeat(node1);
-		assertTrue(previousUpdated < getUpdated());
 
 		Map<Integer, BaseNodeRepository.NodeInfo> nodes = getNodesInfo();
 		assertTrue(previousNodes.get(0).getLastUpdateTime() < nodes.get(0).getLastUpdateTime());
@@ -143,40 +135,14 @@ public class SimpleNodeRepositoryTest extends AbstractTestNGSpringContextTests {
 		assertEquals(repository.getNodes(), ImmutableMap.of());
 	}
 
-	@BeforeClass
-	private void openSession() {
-		session = cluster.connect(configuration.getShardingKeyspace());
-	}
-
-
 	@BeforeMethod
 	private void cleanUp() {
-		session.execute(QueryBuilder.truncate("heartbeats_client_nodes1"));
-	}
-
-	private long getUpdated() {
-		return session.execute(
-			QueryBuilder
-				.select()
-				.from("heartbeats_client_nodes1")
-				.where(eq("id", "client_nodes"))
-		)
-			.one()
-			.getLong("updated");
+		repository.removeAll();
 	}
 
 	private Map<Integer, BaseNodeRepository.NodeInfo> getNodesInfo() {
-		ByteBuffer nodeBuffer = session.execute(
-			QueryBuilder
-				.select()
-				.from("heartbeats_client_nodes1")
-				.where(eq("id", "client_nodes"))
-		)
-			.one()
-			.getBytes("nodes");
-
-		byte[] nodeBytes = new byte[nodeBuffer.remaining()];
-		nodeBuffer.get(nodeBytes);
-		return (Map<Integer, BaseNodeRepository.NodeInfo>) SerializationUtils.deserialize(nodeBytes);
+		// FIXME
+		Map<Integer, BaseNodeRepository.NodeInfo> nodes = memcachedClient.get(SimpleNodeRepository.class.getName() + "_client_nodes");
+		return nodes;
 	}
 }
