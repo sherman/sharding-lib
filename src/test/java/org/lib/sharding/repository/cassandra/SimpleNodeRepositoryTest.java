@@ -9,6 +9,7 @@ import org.lib.sharding.configuration.ClusterConfiguration;
 import org.lib.sharding.configuration.NodeRepositoryConfiguration;
 import org.lib.sharding.domain.Node;
 import org.lib.sharding.domain.ServerNode;
+import org.lib.sharding.repository.NodeInfo;
 import org.lib.sharding.repository.NodeRepository;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.ContextConfiguration;
@@ -77,12 +78,12 @@ public class SimpleNodeRepositoryTest extends AbstractTestNGSpringContextTests {
 		assertEquals(repository.getNodes(), ImmutableMap.of(0, node1));
 
 		long previousUpdated = getUpdated();
-		Map<Integer, BaseNodeRepository.NodeInfo> previousNodes = getNodesInfo();
+		Map<Integer, NodeInfo> previousNodes = getNodesInfo();
 
 		repository.heartbeat(node1);
 		assertTrue(previousUpdated < getUpdated());
 
-		Map<Integer, BaseNodeRepository.NodeInfo> nodes = getNodesInfo();
+		Map<Integer, NodeInfo> nodes = getNodesInfo();
 		assertTrue(previousNodes.get(0).getLastUpdateTime() < nodes.get(0).getLastUpdateTime());
 	}
 
@@ -165,7 +166,7 @@ public class SimpleNodeRepositoryTest extends AbstractTestNGSpringContextTests {
 			.getLong("updated");
 	}
 
-	private Map<Integer, BaseNodeRepository.NodeInfo> getNodesInfo() {
+	private Map<Integer, NodeInfo> getNodesInfo() {
 		ByteBuffer nodeBuffer = session.execute(
 			QueryBuilder
 				.select()
@@ -177,6 +178,6 @@ public class SimpleNodeRepositoryTest extends AbstractTestNGSpringContextTests {
 
 		byte[] nodeBytes = new byte[nodeBuffer.remaining()];
 		nodeBuffer.get(nodeBytes);
-		return (Map<Integer, BaseNodeRepository.NodeInfo>) SerializationUtils.deserialize(nodeBytes);
+		return (Map<Integer, NodeInfo>) SerializationUtils.deserialize(nodeBytes);
 	}
 }

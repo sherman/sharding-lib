@@ -1,24 +1,22 @@
 package org.lib.sharding.repository.memcached;
 
-import com.datastax.driver.core.querybuilder.QueryBuilder;
 import com.google.common.collect.ImmutableMap;
 import org.lib.sharding.configuration.MemcachedShardingConfiguration;
 import org.lib.sharding.configuration.NodeRepositoryConfiguration;
 import org.lib.sharding.domain.Node;
 import org.lib.sharding.domain.ServerNode;
 import org.lib.sharding.memcached.MemcachedClient;
+import org.lib.sharding.repository.NodeInfo;
 import org.lib.sharding.repository.NodeRepository;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.support.AnnotationConfigContextLoader;
 import org.springframework.test.context.testng.AbstractTestNGSpringContextTests;
-import org.springframework.util.SerializationUtils;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import javax.inject.Inject;
 import javax.inject.Named;
-import java.nio.ByteBuffer;
 import java.util.Map;
 
 import static org.testng.Assert.assertEquals;
@@ -70,11 +68,11 @@ public class SimpleNodeRepositoryTest extends AbstractTestNGSpringContextTests {
 		repository.heartbeat(node1);
 		assertEquals(repository.getNodes(), ImmutableMap.of(0, node1));
 
-		Map<Integer, BaseNodeRepository.NodeInfo> previousNodes = getNodesInfo();
+		Map<Integer, NodeInfo> previousNodes = getNodesInfo();
 
 		repository.heartbeat(node1);
 
-		Map<Integer, BaseNodeRepository.NodeInfo> nodes = getNodesInfo();
+		Map<Integer, NodeInfo> nodes = getNodesInfo();
 		assertTrue(previousNodes.get(0).getLastUpdateTime() < nodes.get(0).getLastUpdateTime());
 	}
 
@@ -140,9 +138,9 @@ public class SimpleNodeRepositoryTest extends AbstractTestNGSpringContextTests {
 		repository.removeAll();
 	}
 
-	private Map<Integer, BaseNodeRepository.NodeInfo> getNodesInfo() {
+	private Map<Integer, NodeInfo> getNodesInfo() {
 		// FIXME
-		Map<Integer, BaseNodeRepository.NodeInfo> nodes = memcachedClient.get(SimpleNodeRepository.class.getName() + "_client_nodes");
+		Map<Integer, NodeInfo> nodes = memcachedClient.get(SimpleNodeRepository.class.getName() + "_client_nodes");
 		return nodes;
 	}
 }
