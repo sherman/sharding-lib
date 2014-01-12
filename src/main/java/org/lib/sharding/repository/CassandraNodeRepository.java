@@ -1,4 +1,4 @@
-package org.lib.sharding.repository.cassandra;
+package org.lib.sharding.repository;
 
 
 import com.datastax.driver.core.*;
@@ -11,7 +11,6 @@ import org.jetbrains.annotations.Nullable;
 import org.joda.time.LocalDateTime;
 import org.lib.sharding.configuration.NodeRepositoryConfiguration;
 import org.lib.sharding.domain.Node;
-import org.lib.sharding.repository.NodeInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.util.SerializationUtils;
@@ -28,15 +27,15 @@ import static com.google.common.collect.Maps.transformValues;
 import static com.google.common.collect.Sets.newHashSet;
 import static java.lang.System.currentTimeMillis;
 
-public abstract class BaseNodeRepository extends org.lib.sharding.repository.BaseNodeRepository {
-	private static final Logger log = LoggerFactory.getLogger(BaseNodeRepository.class);
+public class CassandraNodeRepository extends BaseNodeRepository {
+	private static final Logger log = LoggerFactory.getLogger(CassandraNodeRepository.class);
 
 	private static final int MAX_UPDATE_ATTEMPTS = 0x5;
 
 	private final Cluster cassandraCluster;
 	private Session session;
 
-	public BaseNodeRepository(String suffix, Cluster cassandraCluster, NodeRepositoryConfiguration configuration) {
+	public CassandraNodeRepository(String suffix, Cluster cassandraCluster, NodeRepositoryConfiguration configuration) {
 		super(configuration, suffix);
 		this.cassandraCluster = cassandraCluster;
 

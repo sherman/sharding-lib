@@ -1,4 +1,4 @@
-package org.lib.sharding.repository.memcached;
+package org.lib.sharding.repository;
 
 
 import com.google.common.base.Function;
@@ -10,10 +10,8 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.joda.time.LocalDateTime;
 import org.lib.sharding.configuration.NodeRepositoryConfiguration;
-import org.lib.sharding.domain.Listener;
 import org.lib.sharding.domain.Node;
 import org.lib.sharding.memcached.MemcachedClient;
-import org.lib.sharding.repository.NodeInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -28,19 +26,17 @@ import static com.google.common.collect.Maps.transformValues;
 import static com.google.common.collect.Sets.newHashSet;
 import static java.lang.System.currentTimeMillis;
 
-public abstract class BaseNodeRepository extends org.lib.sharding.repository.BaseNodeRepository {
-	private static final Logger log = LoggerFactory.getLogger(BaseNodeRepository.class);
+public class MemcachedNodeRepository extends org.lib.sharding.repository.BaseNodeRepository {
+	private static final Logger log = LoggerFactory.getLogger(MemcachedNodeRepository.class);
 	private static final int MEMCACHED_DELAY_SECONDS = 2;
-
-	private Listener eventListener;
 
 	// local cached value used by Listener
 	private volatile Map<Integer, Node> currentNodes = newHashMap();
 
 	private final MemcachedClient memcached;
 
-	public BaseNodeRepository(String suffix, MemcachedClient memcached, NodeRepositoryConfiguration configuration) {
-		super(configuration, suffix);
+	public MemcachedNodeRepository(String suffix, MemcachedClient memcached, NodeRepositoryConfiguration configuration) {
+		super(configuration, MemcachedNodeRepository.class.getName() + suffix);
 		this.memcached = memcached;
 	}
 

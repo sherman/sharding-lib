@@ -6,6 +6,7 @@ import org.lib.sharding.configuration.NodeRepositoryConfiguration;
 import org.lib.sharding.domain.Node;
 import org.lib.sharding.domain.ServerNode;
 import org.lib.sharding.memcached.MemcachedClient;
+import org.lib.sharding.repository.MemcachedNodeRepository;
 import org.lib.sharding.repository.NodeInfo;
 import org.lib.sharding.repository.NodeRepository;
 import org.springframework.test.context.ActiveProfiles;
@@ -27,7 +28,7 @@ import static org.testng.Assert.assertTrue;
 	classes = {MemcachedShardingConfiguration.class}
 )
 @ActiveProfiles("test")
-public class SimpleNodeRepositoryTest extends AbstractTestNGSpringContextTests {
+public class MemcachedNodeRepositoryTest extends AbstractTestNGSpringContextTests {
 
 	@Inject
 	@Named("client")
@@ -140,7 +141,7 @@ public class SimpleNodeRepositoryTest extends AbstractTestNGSpringContextTests {
 
 	private Map<Integer, NodeInfo> getNodesInfo() {
 		// FIXME
-		Map<Integer, NodeInfo> nodes = memcachedClient.get(SimpleNodeRepository.class.getName() + "_client_nodes");
+		Map<Integer, NodeInfo> nodes = memcachedClient.get(MemcachedNodeRepository.class.getName() + "_client_nodes");
 		return nodes;
 	}
 }

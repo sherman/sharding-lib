@@ -34,7 +34,7 @@ import static org.testng.Assert.assertTrue;
 	classes = {ClusterConfiguration.class, CassandraShardingConfiguration.class}
 )
 @ActiveProfiles("test")
-public class SimpleNodeRepositoryTest extends AbstractTestNGSpringContextTests {
+public class CassandraNodeRepositoryTest extends AbstractTestNGSpringContextTests {
 
 	@Inject
 	@Named("client")

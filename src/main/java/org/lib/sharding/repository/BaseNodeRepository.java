@@ -9,7 +9,7 @@ import java.util.Map;
 
 import static com.google.common.collect.Maps.newHashMap;
 
-public abstract class BaseNodeRepository implements NodeRepository {
+abstract class BaseNodeRepository implements NodeRepository {
 
 	protected final NodeRepositoryConfiguration configuration;
 	protected final String suffix;
