@@ -26,7 +26,7 @@ import static com.google.common.collect.Maps.transformValues;
 import static com.google.common.collect.Sets.newHashSet;
 import static java.lang.System.currentTimeMillis;
 
-public class MemcachedNodeRepository extends org.lib.sharding.repository.BaseNodeRepository {
+public class MemcachedNodeRepository extends BaseNodeRepository {
 	private static final Logger log = LoggerFactory.getLogger(MemcachedNodeRepository.class);
 	private static final int MEMCACHED_DELAY_SECONDS = 2;
 
@@ -62,21 +62,7 @@ public class MemcachedNodeRepository extends org.lib.sharding.repository.BaseNod
 							// check heartbeat expiration
 							Set<Node> mustBeRemoved = newHashSet();
 							for (Map.Entry<Integer, NodeInfo> nodeElt : current.entrySet()) {
-								Long lastUpdateTime = nodeElt.getValue().getLastUpdateTime();
-								Long requiredUpdateTime =
-									currentTimeMillis()
-										- (configuration.getHeartbeatDelay() * 2) * 1000;
-								// heartbeat time is expired
-								if (
-									null == lastUpdateTime
-										|| requiredUpdateTime > lastUpdateTime
-									) {
-									log.debug(
-										"Node({}): RequiredUpdateTime ({}) > lastUpdatedTime ([})",
-										nodeElt.getValue().getNode(),
-										new LocalDateTime(requiredUpdateTime),
-										new LocalDateTime(lastUpdateTime)
-									);
+								if (isNodeExpired(nodeElt.getValue())) {
 									mustBeRemoved.add(nodeElt.getValue().getNode());
 								}
 							}

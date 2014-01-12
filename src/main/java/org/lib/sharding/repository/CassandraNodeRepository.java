@@ -204,28 +204,6 @@ public class CassandraNodeRepository extends BaseNodeRepository {
 		return nodeCluster;
 	}
 
-	private boolean isNodeExpired(NodeInfo nodeInfo) {
-		Long lastUpdateTime = nodeInfo.getLastUpdateTime();
-		Long requiredUpdateTime =
-			currentTimeMillis()
-				- (configuration.getHeartbeatDelay() * 2) * 1000;
-		// heartbeat time is expired
-		boolean nodeExpired =
-			null == lastUpdateTime
-				|| requiredUpdateTime > lastUpdateTime;
-
-		if (nodeExpired) {
-			log.debug(
-				"Node({}) is expired: RequiredUpdateTime ({}) > lastUpdatedTime ({})",
-				nodeInfo.getNode(),
-				new LocalDateTime(requiredUpdateTime),
-				new LocalDateTime(lastUpdateTime)
-			);
-		}
-
-		return nodeExpired;
-	}
-
 	private static void removeNode(Map<Integer, NodeInfo> nodes, Node removableNode) {
 		for (Map.Entry<Integer, NodeInfo> node : nodes.entrySet()) {
 			if (removableNode.equals(node.getValue().getNode())) {
