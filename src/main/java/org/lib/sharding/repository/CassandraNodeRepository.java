@@ -210,19 +210,4 @@ public class CassandraNodeRepository extends BaseNodeRepository {
 			return nodes.isEmpty();
 		}
 	}
-
-	private static Map<Integer, Node> toNodeMap(Map<Integer, NodeInfo> nodeInfoMap) {
-		return transformValues(
-			nodeInfoMap,
-			new Function<NodeInfo, Node>() {
-				@Override
-				public Node apply(@Nullable NodeInfo nodeInfo) {
-					assert null != nodeInfo;
-					return nodeInfo.getNode();
-				}
-			}
-		);
-	}
-
-
 }

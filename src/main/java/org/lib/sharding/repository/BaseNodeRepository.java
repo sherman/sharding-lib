@@ -1,5 +1,6 @@
 package org.lib.sharding.repository;
 
+import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.common.base.Predicate;
 import org.jetbrains.annotations.NotNull;
@@ -15,6 +16,7 @@ import java.util.Map;
 
 import static com.google.common.collect.FluentIterable.from;
 import static com.google.common.collect.Maps.newHashMap;
+import static com.google.common.collect.Maps.transformValues;
 import static java.lang.System.currentTimeMillis;
 
 abstract class BaseNodeRepository implements NodeRepository {
@@ -86,6 +88,19 @@ abstract class BaseNodeRepository implements NodeRepository {
 		updatable.setLastUpdateTime(currentTimeMillis());
 		updatable.setNode(node);
 		nodes.put(getSlotByNode(nodes, node), updatable);
+	}
+
+	protected static Map<Integer, Node> toNodeMap(Map<Integer, NodeInfo> nodeInfoMap) {
+		return transformValues(
+			nodeInfoMap,
+			new Function<NodeInfo, Node>() {
+				@Override
+				public Node apply(@Nullable NodeInfo nodeInfo) {
+					assert null != nodeInfo;
+					return nodeInfo.getNode();
+				}
+			}
+		);
 	}
 
 	private static int getSlotByNode(Map<Integer, NodeInfo> nodes, final Node node) {
