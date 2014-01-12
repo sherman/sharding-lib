@@ -146,46 +146,6 @@ public class MemcachedNodeRepository extends BaseNodeRepository {
 		return nodes;
 	}
 
-	private static void addNode(Map<Integer, NodeInfo> nodes, Node node) {
-		NodeInfo updatable = new NodeInfo();
-		updatable.setLastUpdateTime(currentTimeMillis());
-		updatable.setNode(node);
-		nodes.put(getSlotByNode(nodes, node), updatable);
-	}
-
-	private static int getSlotByNode(Map<Integer, NodeInfo> nodes, final Node node) {
-		Optional<Map.Entry<Integer, NodeInfo>> found = from(nodes.entrySet()).firstMatch(
-			new Predicate<Map.Entry<Integer, NodeInfo>>() {
-				@Override
-				public boolean apply(@Nullable Map.Entry<Integer, NodeInfo> entry) {
-					assert null != entry;
-					return entry.getValue().getNode().equals(node);
-				}
-			}
-		);
-
-		if (found.isPresent()) {
-			return found.get().getKey();
-		} else {
-			return nodes.size();
-		}
-	}
-
-	private static void removeNode(Map<Integer, NodeInfo> nodes, Node removableNode) {
-		for (Map.Entry<Integer, NodeInfo> node : nodes.entrySet()) {
-			if (removableNode.equals(node.getValue().getNode())) {
-				nodes.remove(node.getKey());
-
-				if (!node.getKey().equals(nodes.size())) {
-					int actualNodeSize = nodes.size();
-					nodes.put(node.getKey(), nodes.get(actualNodeSize));
-					nodes.remove(actualNodeSize);
-				}
-				return;
-			}
-		}
-	}
-
 	private class ValueHolder<T> {
 		T value;
 	}

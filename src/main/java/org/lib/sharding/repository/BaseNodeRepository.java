@@ -1,6 +1,9 @@
 package org.lib.sharding.repository;
 
+import com.google.common.base.Optional;
+import com.google.common.base.Predicate;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import org.joda.time.LocalDateTime;
 import org.lib.sharding.configuration.NodeRepositoryConfiguration;
 import org.lib.sharding.domain.Listener;
@@ -10,6 +13,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Map;
 
+import static com.google.common.collect.FluentIterable.from;
 import static com.google.common.collect.Maps.newHashMap;
 import static java.lang.System.currentTimeMillis;
 
@@ -59,5 +63,46 @@ abstract class BaseNodeRepository implements NodeRepository {
 		}
 
 		return nodeExpired;
+	}
+
+	protected static void removeNode(Map<Integer, NodeInfo> nodes, Node removableNode) {
+		for (Map.Entry<Integer, NodeInfo> node : nodes.entrySet()) {
+			if (removableNode.equals(node.getValue().getNode())) {
+				nodes.remove(node.getKey());
+
+				if (!node.getKey().equals(nodes.size())) {
+					log.debug("Delete node {}", removableNode);
+					int actualNodeSize = nodes.size();
+					nodes.put(node.getKey(), nodes.get(actualNodeSize));
+					nodes.remove(actualNodeSize);
+				}
+				return;
+			}
+		}
+	}
+
+	protected static void addNode(Map<Integer, NodeInfo> nodes, Node node) {
+		NodeInfo updatable = new NodeInfo();
+		updatable.setLastUpdateTime(currentTimeMillis());
+		updatable.setNode(node);
+		nodes.put(getSlotByNode(nodes, node), updatable);
+	}
+
+	private static int getSlotByNode(Map<Integer, NodeInfo> nodes, final Node node) {
+		Optional<Map.Entry<Integer, NodeInfo>> found = from(nodes.entrySet()).firstMatch(
+			new Predicate<Map.Entry<Integer, NodeInfo>>() {
+				@Override
+				public boolean apply(@Nullable Map.Entry<Integer, NodeInfo> entry) {
+					assert null != entry;
+					return entry.getValue().getNode().equals(node);
+				}
+			}
+		);
+
+		if (found.isPresent()) {
+			return found.get().getKey();
+		} else {
+			return nodes.size();
+		}
 	}
 }

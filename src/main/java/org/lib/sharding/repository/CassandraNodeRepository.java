@@ -8,7 +8,6 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.joda.time.LocalDateTime;
 import org.lib.sharding.configuration.NodeRepositoryConfiguration;
 import org.lib.sharding.domain.Node;
 import org.slf4j.Logger;
@@ -26,6 +25,7 @@ import static com.google.common.collect.Maps.newHashMap;
 import static com.google.common.collect.Maps.transformValues;
 import static com.google.common.collect.Sets.newHashSet;
 import static java.lang.System.currentTimeMillis;
+import static org.springframework.util.SerializationUtils.serialize;
 
 public class CassandraNodeRepository extends BaseNodeRepository {
 	private static final Logger log = LoggerFactory.getLogger(CassandraNodeRepository.class);
@@ -64,22 +64,18 @@ public class CassandraNodeRepository extends BaseNodeRepository {
 	public synchronized void add(@NotNull final Node node) {
 		NodeCluster actual = getNodeCluster();
 
-		long updated = LocalDateTime.now().toDate().getTime();
+		long updated = currentTimeMillis();
 
-		NodeInfo nodeInfo = new NodeInfo();
-		nodeInfo.setLastUpdateTime(updated);
-		nodeInfo.setNode(node);
+		Map<Integer, NodeInfo> initial = Maps.newHashMap();
+		addNode(initial, node);
 
 		if (actual.isEmpty()) {
-			Map<Integer, NodeInfo> initial = Maps.newHashMap();
-			initial.put(0, nodeInfo);
-
 			NodeCluster initialCluster = new NodeCluster(initial, updated);
 
 			Statement insertStatement = QueryBuilder
 				.insertInto("heartbeats_client_nodes1")
 				.value("id", "client_nodes")
-				.value("nodes", ByteBuffer.wrap(SerializationUtils.serialize(initialCluster.getNodes())))
+				.value("nodes", ByteBuffer.wrap(serialize(initialCluster.getNodes())))
 				.value("updated", initialCluster.getUpdated())
 				.ifNotExists();
 
@@ -118,14 +114,14 @@ public class CassandraNodeRepository extends BaseNodeRepository {
 	private void update(Node node) {
 		for (int i = 0; i < MAX_UPDATE_ATTEMPTS; i++) {
 			NodeCluster cluster = getNodeCluster();
-			updateNode(node, cluster);
+			addNode(cluster.getNodes(), node);
 
 			removeExpiredNodes(cluster);
 
-			long lastUpdated = LocalDateTime.now().toDate().getTime();
+			long lastUpdated = currentTimeMillis();;
 
 			Statement updateStatement = QueryBuilder.update("heartbeats_client_nodes1")
-				.with(set("nodes", ByteBuffer.wrap(SerializationUtils.serialize(cluster.getNodes()))))
+				.with(set("nodes", ByteBuffer.wrap(serialize(cluster.getNodes()))))
 				.and(set("updated", lastUpdated))
 				.where(eq("id", suffix))
 				.onlyIf(eq("updated", cluster.getUpdated()));
@@ -158,21 +154,6 @@ public class CassandraNodeRepository extends BaseNodeRepository {
 		}
 	}
 
-	private static void updateNode(Node node, NodeCluster cluster) {
-		for (NodeInfo actualNode : cluster.getNodes().values()) {
-			if (actualNode.getNode().equals(node)) {
-				actualNode.setLastUpdateTime(LocalDateTime.now().toDate().getTime());
-				return;
-			}
-		}
-
-		NodeInfo nodeInfo = new NodeInfo();
-		nodeInfo.setNode(node);
-		nodeInfo.setLastUpdateTime(LocalDateTime.now().toDate().getTime());
-		// add to the end of the node cluster
-		cluster.getNodes().put(cluster.getNodes().size(), nodeInfo);
-	}
-
 	private NodeCluster getNodeCluster() {
 		ResultSet result = session.execute(
 			QueryBuilder
@@ -202,22 +183,6 @@ public class CassandraNodeRepository extends BaseNodeRepository {
 
 		NodeCluster nodeCluster = new NodeCluster(nodes, updated);
 		return nodeCluster;
-	}
-
-	private static void removeNode(Map<Integer, NodeInfo> nodes, Node removableNode) {
-		for (Map.Entry<Integer, NodeInfo> node : nodes.entrySet()) {
-			if (removableNode.equals(node.getValue().getNode())) {
-				nodes.remove(node.getKey());
-
-				if (!node.getKey().equals(nodes.size())) {
-					log.debug("Delete node {}", removableNode);
-					int actualNodeSize = nodes.size();
-					nodes.put(node.getKey(), nodes.get(actualNodeSize));
-					nodes.remove(actualNodeSize);
-				}
-				return;
-			}
-		}
 	}
 
 	private static class NodeCluster {
