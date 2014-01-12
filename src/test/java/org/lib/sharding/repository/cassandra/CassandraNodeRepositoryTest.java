@@ -46,6 +46,9 @@ public class CassandraNodeRepositoryTest extends AbstractTestNGSpringContextTest
 	@Inject
 	private NodeRepositoryConfiguration configuration;
 
+	@Inject
+	private CassandraShardingConfiguration cassandraShardingConfiguration;
+
 	private Session session;
 
 	@Test
@@ -146,7 +149,7 @@ public class CassandraNodeRepositoryTest extends AbstractTestNGSpringContextTest
 
 	@BeforeClass
 	private void openSession() {
-		session = cluster.connect(configuration.getShardingKeyspace());
+		session = cluster.connect(cassandraShardingConfiguration.getKeyspace());
 	}
 
 

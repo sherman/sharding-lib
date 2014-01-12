@@ -33,13 +33,15 @@ public class CassandraNodeRepository extends BaseNodeRepository {
 	private static final int MAX_UPDATE_ATTEMPTS = 0x5;
 
 	private final Cluster cassandraCluster;
+	private final String keyspace;
 	private Session session;
 
-	public CassandraNodeRepository(String suffix, Cluster cassandraCluster, NodeRepositoryConfiguration configuration) {
+	public CassandraNodeRepository(String suffix, Cluster cassandraCluster, String keyspace, NodeRepositoryConfiguration configuration) {
 		super(configuration, suffix);
 		this.cassandraCluster = cassandraCluster;
+		this.keyspace = keyspace;
 
-		this.session = cassandraCluster.connect(configuration.getShardingKeyspace());
+		this.session = cassandraCluster.connect(keyspace);
 	}
 
 	@Override

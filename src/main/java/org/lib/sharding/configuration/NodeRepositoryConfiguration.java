@@ -24,11 +24,6 @@ public class NodeRepositoryConfiguration {
 		return env.getProperty("sharding.heartbeat.delay", Integer.class);
 	}
 
-	// TODO: move to cassandra config
-	public String getShardingKeyspace() {
-		return env.getProperty("sharding.cassandra.keyspace");
-	}
-
 	public Node getSelfNode() {
 		Node selfNode = new ServerNode();
 		selfNode.setId(env.getProperty("sharding.node.id", Long.class));
