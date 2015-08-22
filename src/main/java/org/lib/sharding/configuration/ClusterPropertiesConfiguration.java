@@ -1,4 +1,4 @@
-package org.lib.sharding.service;
+package org.lib.sharding.configuration;
 
 /*
  * Copyright (C) 2015 by Denis M. Gabaydulin
@@ -19,19 +19,18 @@ package org.lib.sharding.service;
  * limitations under the License.
  */
 
-import org.lib.sharding.repository.NodeRepository;
-
 import javax.inject.Inject;
+import javax.inject.Named;
 import javax.inject.Singleton;
 
 @Singleton
-public class ClientNodeRouter extends BaseNodeRouter<Long> {
+public class ClusterPropertiesConfiguration {
 
-	@Inject
-	private NodeRepository nodeRepository;
+    @Inject
+    @Named("sharding.cluster.config")
+    private String clusterConfig;
 
-	@Override
-	protected NodeRepository getNodeRepository() {
-		return nodeRepository;
-	}
+    public String getClusterConfig() {
+        return clusterConfig;
+    }
 }

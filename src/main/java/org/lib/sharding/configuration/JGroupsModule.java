@@ -1,4 +1,4 @@
-package org.lib.sharding.service;
+package org.lib.sharding.configuration;
 
 /*
  * Copyright (C) 2015 by Denis M. Gabaydulin
@@ -19,19 +19,23 @@ package org.lib.sharding.service;
  * limitations under the License.
  */
 
-import org.lib.sharding.repository.NodeRepository;
+import com.google.inject.AbstractModule;
+import com.google.inject.Provides;
+import org.jgroups.blocks.locking.LockService;
 
-import javax.inject.Inject;
 import javax.inject.Singleton;
 
-@Singleton
-public class ClientNodeRouter extends BaseNodeRouter<Long> {
+public class JGroupsModule extends AbstractModule {
 
-	@Inject
-	private NodeRepository nodeRepository;
+    @Override
+    protected void configure() {
+    }
 
-	@Override
-	protected NodeRepository getNodeRepository() {
-		return nodeRepository;
-	}
+    @Provides
+    @Singleton
+    LockService lockService() {
+        return new LockService();
+    }
+
+
 }

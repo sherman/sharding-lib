@@ -19,19 +19,20 @@ package org.lib.sharding.service;
  * limitations under the License.
  */
 
-import org.lib.sharding.repository.NodeRepository;
+import org.jetbrains.annotations.NotNull;
+import org.lib.sharding.domain.ClusterNode;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import javax.inject.Inject;
 import javax.inject.Singleton;
+import java.util.List;
 
 @Singleton
-public class ClientNodeRouter extends BaseNodeRouter<Long> {
+public class RebalancingStrategyImpl implements RebalancingStrategy {
+    private static final Logger log = LoggerFactory.getLogger(RebalancingStrategyImpl.class);
 
-	@Inject
-	private NodeRepository nodeRepository;
-
-	@Override
-	protected NodeRepository getNodeRepository() {
-		return nodeRepository;
-	}
+    @Override
+    public void nodesChanged(@NotNull List<ClusterNode> oldNodes, @NotNull List<ClusterNode> newNodes) {
+        log.info("Old [{}], new [{}]", oldNodes, newNodes);
+    }
 }

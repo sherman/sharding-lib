@@ -19,19 +19,27 @@ package org.lib.sharding.service;
  * limitations under the License.
  */
 
-import org.lib.sharding.repository.NodeRepository;
+import com.google.inject.ImplementedBy;
+import org.jetbrains.annotations.NotNull;
+import org.jgroups.Address;
+import org.jgroups.JChannel;
+import org.lib.sharding.domain.ClusterNode;
 
-import javax.inject.Inject;
-import javax.inject.Singleton;
+import java.util.List;
 
-@Singleton
-public class ClientNodeRouter extends BaseNodeRouter<Long> {
+@ImplementedBy(ClusterMembershipServiceImpl.class)
+public interface ClusterMembershipService {
+    void start(@NotNull String name);
 
-	@Inject
-	private NodeRepository nodeRepository;
+    void stop();
 
-	@Override
-	protected NodeRepository getNodeRepository() {
-		return nodeRepository;
-	}
+    JChannel getChannel();
+
+    ClusterNode getSelfNode();
+
+    ClusterNode getNode(@NotNull Address address);
+
+    List<ClusterNode> getNodes();
+
+    void setNodes(@NotNull Address address, @NotNull List<ClusterNode> nodes);
 }

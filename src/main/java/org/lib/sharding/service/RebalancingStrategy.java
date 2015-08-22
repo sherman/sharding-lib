@@ -19,19 +19,13 @@ package org.lib.sharding.service;
  * limitations under the License.
  */
 
-import org.lib.sharding.repository.NodeRepository;
+import com.google.inject.ImplementedBy;
+import org.jetbrains.annotations.NotNull;
+import org.lib.sharding.domain.ClusterNode;
 
-import javax.inject.Inject;
-import javax.inject.Singleton;
+import java.util.List;
 
-@Singleton
-public class ClientNodeRouter extends BaseNodeRouter<Long> {
-
-	@Inject
-	private NodeRepository nodeRepository;
-
-	@Override
-	protected NodeRepository getNodeRepository() {
-		return nodeRepository;
-	}
+@ImplementedBy(RebalancingStrategyImpl.class)
+public interface RebalancingStrategy {
+    void nodesChanged(@NotNull List<ClusterNode> oldNodes, @NotNull List<ClusterNode> newNodes);
 }
