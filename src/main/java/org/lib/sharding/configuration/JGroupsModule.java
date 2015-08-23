@@ -36,6 +36,4 @@ public class JGroupsModule extends AbstractModule {
     LockService lockService() {
         return new LockService();
     }
-
-
 }

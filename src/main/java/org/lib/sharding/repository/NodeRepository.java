@@ -29,13 +29,16 @@ import java.util.Set;
 @ImplementedBy(SimpleNodeRepository.class)
 public interface NodeRepository {
 
-	@NotNull
-	List<ClusterNode> getNodes();
+    @NotNull
+    List<ClusterNode> getNodes();
 
     void sync(@NotNull Set<ClusterNode> actual, @NotNull ClusterNode self);
 
-	void add(@NotNull ClusterNode node);
-	void remove(@NotNull ClusterNode node);
-	int size();
+    void add(@NotNull ClusterNode node);
+
+    void remove(@NotNull ClusterNode node);
+
+    int size();
+
     void setNodes(@NotNull List<ClusterNode> nodes);
 }

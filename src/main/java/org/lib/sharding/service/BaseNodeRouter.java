@@ -34,34 +34,34 @@ import static com.google.common.hash.Hashing.consistentHash;
 import static com.google.common.hash.Hashing.md5;
 
 abstract class BaseNodeRouter<T> implements NodeRouter<T> {
-	private static final Logger log = LoggerFactory.getLogger(BaseNodeRouter.class);
+    private static final Logger log = LoggerFactory.getLogger(BaseNodeRouter.class);
 
-	abstract protected NodeRepository getNodeRepository();
+    abstract protected NodeRepository getNodeRepository();
 
-	@Override
-	public ClusterNode getNodeByKey(@NotNull T elt) {
-		List<ClusterNode> nodes = getNodeRepository().getNodes();
-		if (nodes.isEmpty()) {
-			throw new IllegalStateException("Nodes list is empty!");
-		}
+    @Override
+    public ClusterNode getNodeByKey(@NotNull T elt) {
+        List<ClusterNode> nodes = getNodeRepository().getNodes();
+        if (nodes.isEmpty()) {
+            throw new IllegalStateException("Nodes list is empty!");
+        }
 
         int bucket = consistentHash(md5().hashString(elt.toString(), Charset.forName("UTF-8")), nodes.size());
 
-		ClusterNode node = nodes.get(bucket);
-		if (null == node) {
-			throw new IllegalStateException("Can't find node for the given key:" + elt.toString());
-		}
+        ClusterNode node = nodes.get(bucket);
+        if (null == node) {
+            throw new IllegalStateException("Can't find node for the given key:" + elt.toString());
+        }
 
-		return node;
-	}
+        return node;
+    }
 
-	@Override
-	public int getNodesCount() {
-		return getNodeRepository().size();
-	}
+    @Override
+    public int getNodesCount() {
+        return getNodeRepository().size();
+    }
 
-	@Override
-	public Set<ClusterNode> getNodes() {
-		return ImmutableSet.copyOf(getNodeRepository().getNodes());
-	}
+    @Override
+    public Set<ClusterNode> getNodes() {
+        return ImmutableSet.copyOf(getNodeRepository().getNodes());
+    }
 }
